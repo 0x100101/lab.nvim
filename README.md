@@ -29,7 +29,7 @@
 
 ```
 Plug 'nvim-lua/plenary.nvim'
-Plug '0x100101/lab.nvim'
+Plug '0x100101/lab.nvim', { 'do': 'cd js && npm ci' }
 
 lua require('lab').setup {}
 
