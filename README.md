@@ -3,14 +3,15 @@
 **Heads up:** *lab.nvim is still very early in development and should be considered beta.*
 
 ## Goal
-- Provide an array of unique **prototyping** tools in neovim. 
+- Provide a collection of unique **prototyping** tools for neovim. 
 - These tools should be extremely configurable and modular in nature.
 
 ## Features
 
 ### Code Runner
 - The foundational feature for lab.nvim is a code runner with real-time, inline feedback. (Inspired by [runjs](https://runjs.app/), [quokka](https://quokkajs.com/) and others.)
-- The code runner currently supports javascript with additional language support planned for the near future.
+- The code runner currently supports javascript with additional language support planned for the very near future.
+- The goal of the code runner isn't to be a full-fledged debugger.
 
 [code-runner-demo.webm](https://user-images.githubusercontent.com/106625318/178158478-09f4fc29-7dbe-4d34-a56c-64c9f4ecae54.webm)
 
