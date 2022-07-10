@@ -12,6 +12,8 @@
 - The foundational feature for lab.nvim is a code runner with real-time, inline feedback. (Inspired by [runjs](https://runjs.app/), [quokka](https://quokkajs.com/) and others.)
 - The code runner currently supports javascript with additional language support planned for the near future.
 
+![code-runner-demo](https://user-images.githubusercontent.com/106625318/178157401-7b025e40-1a95-4f69-87e7-0f189b727e9d.gif)
+
 #### Commands
 
 | Command | Action |
