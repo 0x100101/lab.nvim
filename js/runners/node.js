@@ -84,18 +84,24 @@ const runner = {
 		if (DEBUG && message.method !== 'Debugger.scriptParsed') log.info(util.inspect(message, false, null));
 
 		if (message.method === 'Debugger.paused') {
-			const frame = this.findFrame(file, message.params.callFrames);
+			const frame = this.findFrame(file, message.params.exceptionDetails.stackTrace.callFrames);
+			if (!frame) return;
+			
 			return {
 				event: 'paused',
 				line: frame.location.lineNumber,
-				col: frame.location.columnnNumber,
+				col: frame.location.columnNumber,
 				text: 'Paused',
 			}
 		}
 		
 		if (message.method === 'Runtime.exceptionThrown') {
+			// Int the case of an error, if we can't find a frame originating in the active file, for clarity we'll still show it on line one.
+			let frame = this.findFrame(file, message.params.exceptionDetails.stackTrace.callFrames);
+			if (!frame) frame = { lineNumber: 0, columnNumber: 0 };
+			
 			const description = message.params.exceptionDetails.exception.preview.properties.find(items => items.name === 'message');
-			const frame = this.findFrame(file, message.params.exceptionDetails.stackTrace.callFrames);
+			
 			return {
 				event: 'error',
 				line: frame.lineNumber,
@@ -107,6 +113,9 @@ const runner = {
 
 		if (message.method === 'Runtime.consoleAPICalled') {
 			
+			const frame = this.findFrame(file, message.params.stackTrace.callFrames);
+			if (!frame) return;
+
 			let preview = ``;
 
 			message.params.args.forEach((arg, index, arr) => {
@@ -160,8 +169,7 @@ const runner = {
 				});
 				preview = preview.slice(0, -3);
 			}
-
-			const frame = this.findFrame(file, message.params.stackTrace.callFrames);
+	
 			return {
 				event: 'log',
 				type: message.params.type,
