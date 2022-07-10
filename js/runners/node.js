@@ -50,7 +50,7 @@ const runner = {
 			const filtered = this.filterMessage(file, ws, message);
 			if (filtered) return;
 
-			const response = this.processMessage(message)
+			const response = this.processMessage(file, message)
 			if (response) emitter.emit('notification', response);
 		});
 
@@ -61,6 +61,10 @@ const runner = {
 		return emitter;
 	},
 	
+	findFrame(file, callFrames) {
+		return callFrames.find(frame => frame.url === `file://${file}`);
+	},
+
 	filterMessage(file, ws, message) {
 		const frame = message.params?.stackTrace?.callFrames?.[0]?.url;
 		if (frame && frame !== `file://${file}`) {
@@ -76,24 +80,26 @@ const runner = {
 		return false;
 	},
 
-	processMessage(message) {
+	processMessage(file, message) {
 		if (DEBUG && message.method !== 'Debugger.scriptParsed') log.info(util.inspect(message, false, null));
 
 		if (message.method === 'Debugger.paused') {
+			const frame = this.findFrame(file, message.params.callFrames);
 			return {
 				event: 'paused',
-				line: message.params.callFrames[0].location.lineNumber,
-				col: message.params.callFrames[0].location.colNumber,
+				line: frame.location.lineNumber,
+				col: frame.location.columnnNumber,
 				text: 'Paused',
 			}
 		}
 		
 		if (message.method === 'Runtime.exceptionThrown') {
 			const description = message.params.exceptionDetails.exception.preview.properties.find(items => items.name === 'message');
+			const frame = this.findFrame(file, message.params.exceptionDetails.stackTrace.callFrames);
 			return {
 				event: 'error',
-				line: message.params.exceptionDetails.lineNumber,
-				col: message.params.exceptionDetails.columnNumber,
+				line: frame.lineNumber,
+				col: frame.columnNumber,
 				text: description.value,
 				description: message.params.exceptionDetails.exception.description.replaceAll(/\n/g, ''),
 			};
@@ -155,11 +161,12 @@ const runner = {
 				preview = preview.slice(0, -3);
 			}
 
+			const frame = this.findFrame(file, message.params.stackTrace.callFrames);
 			return {
 				event: 'log',
 				type: message.params.type,
-				line: message.params.stackTrace.callFrames[0].lineNumber,
-				col: message.params.stackTrace.callFrames[0].columnNumber,
+				line: frame.lineNumber,
+				col: frame.columnNumber,
 				text: preview,
 			};
 		}
