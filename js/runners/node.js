@@ -155,7 +155,7 @@ const runner = {
 				message.params.stackTrace.callFrames.forEach((frame) => {
 					if (!frame.url.startsWith('node:')) {
 						const fn = frame.functionName || '<anonymous>';
-						preview += `${fn}  `;
+						preview += `${fn}  `;
 					}
 				});
 				preview = preview.slice(0, -3);
