@@ -18,15 +18,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-export const print = (data) => {
-	console.log(JSON.stringify(data));
-}
+export const injectionOffset = 7;
 
-export const rpcid = (function idGenerator() {
-	let i = 0;
-	return () => {
-		if (i++ == 50) i = 1;
-		return i;
-	}
-})();
-
+export default `old_print = print
+print = function(...) 
+    local calling_script = debug.getinfo(2)
+    local line = calling_script.currentline - ${injectionOffset}
+    old_print("==labnvim==<print:".. line ..">", ...)
+end
+`;

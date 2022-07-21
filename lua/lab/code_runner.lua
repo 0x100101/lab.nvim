@@ -19,11 +19,22 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 --]]
 
 local api = vim.api
+local Filetype = require'plenary.filetype'
 local Panel = require 'lab.panel'
 local VirtualText = require 'lab.virtual_text'
 local Process = require 'lab.process'
+local Config = require 'lab.code_runner_config'
 
 local CodeRunner = {}
+
+local supported_file_types = {
+	["javascript"] = true,
+	["javascriptreact"] = true,
+	["typescript"] = true,
+	["typecriptreact"] = true,
+	["python"] = true,
+	["lua"] = true,
+}
 
 local state = {
 	active = false,
@@ -31,14 +42,10 @@ local state = {
 	instance_count = 0,
 }
 
-local supported_extensions = { [".js"] = true }
-
 function CodeRunner.run()
 
-	-- vim.api.nvim_get_current_buf(),
-	local buf_handle = vim.fn.bufnr('%')
-	local file_path = api.nvim_buf_get_name(0)
-	
+	local buf_handle = api.nvim_get_current_buf()
+	local file_path = api.nvim_buf_get_name(buf_handle)
 
 	-- Resume if paused.
 	if state.instances[file_path] and state.instances[file_path].paused == true then
@@ -47,34 +54,49 @@ function CodeRunner.run()
 		return
 	end
 
-	-- Stop and re-run if active.
+	-- Stop and then re-run if active.
 	if state.instances[file_path] then
 		CodeRunner.update(file_path)
 		return
 	end
 	
-	-- Check the file type is supported.
-	local file_extension = file_path:match("^.+(%..+)$")
-	local is_supported = supported_extensions[file_extension]
-
-	if not is_supported then
-		return
+	-- Proceed only if the file type is supported.
+	local file_type = Filetype.detect(file_path);
+	if not supported_file_types[file_type] then
+			vim.notify("File type: " .. file_type .. " not supported.", "error", { title = "Lab.nvim"});
+		return 
 	end
 
 	local run_id = os.time()
 
-	state.instances[file_path] = { buf_handle = buf_handle, run_id = run_id }
+	state.instances[file_path] = { 
+		buf_handle = buf_handle, 
+		run_id = run_id, 
+		config = Config.read(file_path) 
+	}
+	
 	state.instance_count = state.instance_count + 1
 
 	if (state.instance_count == 1) then
 		Process:start(CodeRunner.handler)
 	end
+	
+	Process:send({
+		jsonrpc = "2.0",
+		id = file_path,
+		method = "Lab.Runner.Start",
+		params = {
+			file = file_path,
+			config = state.instances[file_path].config
+		}
+	})
 
-	Process:send({ jsonrpc = "2.0", id = file_path, method = "Lab.Runner.Start", params = { file = file_path } })
 	Panel:write("## Executing: `" .. file_path .. "` Run ID: " .. run_id)
+
 end
 
 function CodeRunner.update(file_path)
+
 	local is_instantiated = state.instances[file_path]
 	if not is_instantiated then return end
 
@@ -87,7 +109,15 @@ function CodeRunner.update(file_path)
 	Process:send({ jsonrpc = "2.0", id = file_path, method = "Lab.Runner.Stop", params = { file = file_path } })
 
 	vim.defer_fn(function()
-		Process:send({ jsonrpc = "2.0", id = file_path, method = "Lab.Runner.Start", params = { file = file_path } })
+		Process:send({ 
+			jsonrpc = "2.0", 
+			id = file_path, 
+			method = "Lab.Runner.Start", 
+			params = { 
+				file = file_path, 
+				config = state.instances[file_path].config 
+			} 
+		})
 	end, 1)
 
 	vim.defer_fn(function()
@@ -98,8 +128,7 @@ end
 
 function CodeRunner.stop()
 
-	-- vim.api.nvim_get_current_buf(),
-	local buf_handle = vim.fn.bufnr('%')
+	local buf_handle = api.nvim_get_current_buf()
 	local file_path = api.nvim_buf_get_name(0)
 
 	state.instances[file_path] = nil
@@ -116,16 +145,21 @@ function CodeRunner.stop()
 end
 
 function CodeRunner.resume()
-	local buf_handle = vim.fn.bufnr('%')
+	local buf_handle = api.nvim_get_current_buf()
 	local file_path = api.nvim_buf_get_name(0)
 
 	vim.defer_fn(function()
 		if state.instances[file_path].paused_line then
-			VirtualText:delete(buf_handle, state.instances[file_path].paused_line.mark_id, state.instances[file_path].paused_line.line_num) 
+			VirtualText:delete(buf_handle, state.instances[file_path].paused_line.mark_id, state.instances[file_path].paused_line.line_num)
 		end
 	end, 1)
 
 	Process:send({ jsonrpc = "2.0", id = file_path, method = "Lab.Runner.Resume", params = { file = file_path } })
+end
+
+function CodeRunner.config()
+	local file_path = api.nvim_buf_get_name(0)
+	Config.edit(file_path)
 end
 
 function CodeRunner.panel()
@@ -151,7 +185,11 @@ function CodeRunner.setup()
 end
 
 function CodeRunner.handler(msg)
-	
+	if msg.error then 
+		vim.notify(msg.error.message, "error", { title = "Lab.nvim"});
+		return
+	end
+
 	if not msg.method then return end;
 
 	local buf_handle = state.instances[msg.params.file].buf_handle

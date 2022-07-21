@@ -31,9 +31,27 @@ export const RPC_METHOD = {
 	RUNNER_RESUME: 'Lab.Runner.Resume',
 }
 
-export const RUNNER_FILE_MAPPINGS = {
-	'js': 'node',
+export const PROCESSORS = {
+	ESBUILD: 'lab.esbuild'
+}
+
+export const RUNNERS = {
+	NODE: 'lab.node',
+	PYTHON: 'lab.python',
+	LUA: 'lab.lua',
 };
 
-export const WS_REGEX = /ws:\/\/\S*/ig;
+export const PROCESSORS_PATH = './processors/';
+export const RUNNERS_PATH = './runners/';
+
+export const PROCESSOR_PATHS = {
+	[PROCESSORS.ESBUILD]: PROCESSORS_PATH + 'esbuild.js',
+};
+
+export const RUNNER_PATHS = {
+	[RUNNERS.NODE]: RUNNERS_PATH + 'node/node.js',
+	[RUNNERS.PYTHON]: RUNNERS_PATH + 'python/python.js',
+	[RUNNERS.LUA]: RUNNERS_PATH + 'lua/lua.js',
+};
+
 

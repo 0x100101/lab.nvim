@@ -18,27 +18,24 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import nodeLogger from 'simple-node-logger';
-import { DEBUG } from './constants.js'
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const loggers = [];
-
-export const logger = (name = 'server') => {
-	if (loggers[name]) return loggers[name];
-
-	loggers[name] = nodeLogger.createSimpleFileLogger(`${__dirname}/logs/${name}.log`);
-	
-	if (DEBUG) {
-		const cl = console.log;
-		console.log = function(...args) {
-			loggers[name].info(...args);
-			cl.apply(this, args);
-		}
-	}
-
-	return loggers[name];
+export const print = (data) => {
+	console.log(JSON.stringify(data));
 }
+
+export const tryRun = async (cb) => {
+	try {
+		const ret = await cb();
+		return [ret, null];
+	}
+	catch (err) {
+		return [null, err];
+	}
+}
+
+export const rpcid = (function idGenerator() {
+	let i = 0;
+	return () => {
+		if (i++ == 50) i = 1;
+		return i;
+	}
+})();
