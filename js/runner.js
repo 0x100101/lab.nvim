@@ -19,44 +19,84 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import jsonrpc from 'jsonrpc-lite';
-import { logger } from './logging.js';
-import { print } from './util.js';
-import { DEBUG } from './constants.js'
+import { logger } from './util/logging.js';
+import { print, tryRun } from './util/index.js';
+import { RUNNER_PATHS, PROCESSORS, PROCESSOR_PATHS } from './constants.js'
 
-const log = logger();
+const log = logger('runner');
 
-export const Runner = function() {
-	return {
-		instances: new Map(),
-		start: async function(args) {
-			if (this.instances.has(args.file)) return false;
+export const runner = {
 
-			const { CodeRunner } = await import('./runners/node.js');
-			const runner = await new CodeRunner({ file: args.file });
+	instances: new Map(),
 
-			this.instances.set(args.file, runner);
+	start: async function(args) {
+		log(args)
+		
+		// Validate inputs:
+		if (!('file' in args)) return [false, 'No file specified.'];
+		if (!('config' in args)) return [false, 'No config provided.'];
+		if (this.instances.has(args.file)) return [false, 'Already started on file.'];
+		
+		// Parse config:
+		const [config, configError] = await tryRun(() => {
+			return JSON.parse(args.config);
+		});
 
-			runner.on('notification', (data) => {
-				if (DEBUG) log.info(args.file, 'received data from runner:', data);
-				const message = jsonrpc.notification('update', { file: args.file, ...data });
-				print(message);
-			});
-			return true;
-		},
-		stop(args) {
-			const runner = this.instances.get(args.file);
-			if (!runner) return false;
+		if (configError) return [false, configError.message]
+		if (!('runner' in config)) return [false, 'No runner configured.'];
+		
+		// Handle preprocessing:
+		const [processingData, processingError] = await tryRun(async () => {
+			return await this.invokePreprocessing(args, config)
+		});
 
-			runner.emit('stop');
-			this.instances.delete(args.file);
-			return true;
-		},
-		resume(args) {
-			const runner = this.instances.get(args.file);
-			if (!runner) return false;
-			
-			runner.emit('resume');
-			return true;
-		},
-	}
-}
+		if (processingError) return [false, processingError.message];
+
+		const { filePath, useSourceMap } = processingData;
+		
+		// Start runner:
+		const [runner, runnerError] = await tryRun(async () => {
+			const { codeRunner } = await import(`${RUNNER_PATHS[config.runner]}`);
+			return await codeRunner.init({ file: filePath, useSourceMap });
+		});
+
+		if (runnerError) return [false, runnerError.message];
+		
+		// Output runner notifications to consumer(s):
+		runner.on('notification', data => {
+			log(args.file, data);
+			const message = jsonrpc.notification('update', { file: args.file, ...data });
+			print(message);
+		});
+
+		this.instances.set(args.file, runner);
+		return [true, 'Code runner started'];
+	},
+
+	async invokePreprocessing(args, config) {
+		if ('preprocessors' in config && config.preprocessors.includes(PROCESSORS.ESBUILD)) {
+			const { default: processor } = await import(PROCESSOR_PATHS[PROCESSORS.ESBUILD]);
+			const path = await processor(args.file);
+			return { filePath: path, useSourceMap: true }
+		}
+		return { filePath: args.file, useSourceMap: false };
+	},
+
+	stop(args) {
+		const runner = this.instances.get(args.file);
+		if (!runner) return [false, 'No runner active on file.'];
+
+		runner.emit('stop');
+		this.instances.delete(args.file);
+		return [true];
+	},
+
+	resume(args) {
+		const runner = this.instances.get(args.file);
+		if (!runner) return [false, 'No runner active on file.'];
+
+		runner.emit('resume');
+		return [true];
+	},
+
+};

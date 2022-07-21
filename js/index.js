@@ -21,14 +21,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import readline from 'node:readline';
 import { stdin, stdout } from 'node:process';
 import jsonrpc from 'jsonrpc-lite';
-import { logger } from './logging.js';
-import { print } from './util.js';
-import { DEBUG, RPC_TYPE, RPC_METHOD, RUNNER_FILE_MAPPINGS } from './constants.js'
-import { Runner } from './runner.js';
+import { logger } from './util/logging.js';
+import { print } from './util/index.js';
+import { RPC_TYPE, RPC_METHOD } from './constants.js'
+import { runner } from './runner.js';
 
 const log = logger();
 const input = readline.createInterface({ input: stdin, output: stdout });
-const runner = new Runner();
 
 while (true) {
 	const data = await new Promise(async (resolve) => {
@@ -36,29 +35,29 @@ while (true) {
 	});
 	try {
 		const message = jsonrpc.parse(data)
-		if (DEBUG) log.info(message);
+		log(message);
 		({
 			[RPC_TYPE.REQUEST]: {
 				[RPC_METHOD.RUNNER_START]: async () => {
-					const started = await runner.start(message.payload.params);
+					const [started, startedMsg] = await runner.start(message.payload.params);
 					if (!started) {
-						print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError('runner not started', 101)));
+						print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Runner not started: ${startedMsg}`, 101)));
 						return;
 					}
 					print(jsonrpc.success(message.payload.id, 'ok'));
 				},
 				[RPC_METHOD.RUNNER_STOP]: () => {
-					const stopped = runner.stop(message.payload.params);
+					const [stopped, stopMsg] = runner.stop(message.payload.params);
 					if (!stopped) {
-						print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError('runner not stopped', 102)));
+						print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Runner not stopped ${stopMsg}`, 102)));
 						return;
 					}
 					print(jsonrpc.success(message.payload.id, 'ok'));
 				},
 				[RPC_METHOD.RUNNER_RESUME]: () => {
-					const resumed = runner.resume(message.payload.params);
+					const [resumed, resumeMsg] = runner.resume(message.payload.params);
 					if (!resumed) {
-						print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError('runner not resumed', 102)));
+						print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Runner not resumed ${resumeMsg}`, 102)));
 						return;
 					}
 					print(jsonrpc.success(message.payload.id, 'ok'));
@@ -66,8 +65,8 @@ while (true) {
 			},
 		}[message.type][message.payload.method]());
 	} catch (err) {
-		if (DEBUG) log.error(err);
-		print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError('routing error occured', 100)));
+		log(err);
+		print(jsonrpc.error(0, new jsonrpc.JsonRpcError(`routing error occured ${err}`, 100)));
 		continue;
 	}
 }

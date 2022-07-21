@@ -14,6 +14,9 @@ function s:labcommand(...)
 	if a:1 == "code" && a:2 == 'panel'
 		lua require("lab.code_runner").panel()
 	endif
+	if a:1 == "code" && a:2 == 'config'
+		lua require("lab.code_runner").config()
+	endif
 endfunction
 
 command! -nargs=+ Lab call s:labcommand(<f-args>)

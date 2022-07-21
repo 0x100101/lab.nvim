@@ -8,8 +8,10 @@
   "author": "Dan Peterson",
   "license": "GPL-3.0-only",
   "dependencies": {
+    "esbuild": "0.14.49",
     "jsonrpc-lite": "2.2.0",
     "simple-node-logger": "21.8.12",
+    "sourcemap-codec": "1.4.8",
     "ws": "8.8.0"
   },
   "devDependencies": {
