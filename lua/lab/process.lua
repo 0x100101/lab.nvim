@@ -18,19 +18,28 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 --]]
 
-local Job = require'plenary.job'
+local Job = require 'plenary.job'
+local Util = require 'lab.util'
 
 local Process = {
 	running = false,
 	instance = nil,
+	handlers = {},
 }
 
-function script_path()
-   local src = debug.getinfo(2, "S").source:sub(2)
-   return src:match("(.*/)")
+local function script_path()
+	local src = debug.getinfo(2, "S").source:sub(2)
+	return src:match("(.*/)")
 end
 
-function Process:start(handler)
+function Process:register(handler)
+	table.insert(self.handlers, handler)
+	return function() 
+		table.remove(self.handlers, Util.tablefind(self.handlers, handler))
+	end
+end
+
+function Process:start()
 	if self.running then return end
 	self.instance = Job:new({
 		command = 'node',
@@ -40,12 +49,21 @@ function Process:start(handler)
 			local success, msg = pcall(function()
 				return vim.json.decode(data)
 			end)
+
 			if not success then return end
-			handler(msg)
+
+			if msg.error then 
+				vim.notify(msg.error.message, "error", { title = "Lab.nvim"});
+				return
+			end
+
+			for key, handler in pairs(self.handlers) do
+				handler(msg)
+			end
 		end,
 
 		on_stderr = function (error, data)
-			print("stderr", vim.inspect(data))
+			print("stderr", vim.inspect(error), vim.inspect(data))
 		end,
 	})
 	self.instance:start()
@@ -63,9 +81,11 @@ end
 
 function Process:stop()
 	if(Process.running) then
-		vim.loop.kill(self.instance.pid, 3)
-		self.running = false
-		self.instance = nil
+		vim.schedule_wrap(function()
+			vim.loop.kill(self.instance.pid, 3)
+			self.running = false
+			self.instance = nil
+		end)
 	end
 end
 

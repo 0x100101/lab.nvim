@@ -26,9 +26,12 @@ export const RPC_TYPE = {
 };
 
 export const RPC_METHOD = {
+	CONFIG_GET: 'Lab.Config.Get',
 	RUNNER_START: 'Lab.Runner.Start',
 	RUNNER_STOP: 'Lab.Runner.Stop',
 	RUNNER_RESUME: 'Lab.Runner.Resume',
+	RUNNER_FEEDBACK: 'Lab.Runner.Feedback',
+	QUICKDATA_UPDATE: 'Lab.QuickData.Update',
 }
 
 export const PROCESSORS = {

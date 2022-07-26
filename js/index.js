@@ -18,55 +18,53 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-import readline from 'node:readline';
-import { stdin, stdout } from 'node:process';
 import jsonrpc from 'jsonrpc-lite';
 import { logger } from './util/logging.js';
 import { print } from './util/index.js';
-import { RPC_TYPE, RPC_METHOD } from './constants.js'
+import { RPC_METHOD } from './constants.js';
+import RpcRouter from './rpc-router.js';
 import { runner } from './runner.js';
+import { refresh as quickDataRefresh, dataFilePath as quickDataPath } from './quick_data/quick_data.js'
 
-const log = logger();
-const input = readline.createInterface({ input: stdin, output: stdout });
+const log = logger('process');
+const router = new RpcRouter();
 
-while (true) {
-	const data = await new Promise(async (resolve) => {
-		input.question('', (remoteInput) => resolve(remoteInput));
-	});
-	try {
-		const message = jsonrpc.parse(data)
-		log(message);
-		({
-			[RPC_TYPE.REQUEST]: {
-				[RPC_METHOD.RUNNER_START]: async () => {
-					const [started, startedMsg] = await runner.start(message.payload.params);
-					if (!started) {
-						print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Runner not started: ${startedMsg}`, 101)));
-						return;
-					}
-					print(jsonrpc.success(message.payload.id, 'ok'));
-				},
-				[RPC_METHOD.RUNNER_STOP]: () => {
-					const [stopped, stopMsg] = runner.stop(message.payload.params);
-					if (!stopped) {
-						print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Runner not stopped ${stopMsg}`, 102)));
-						return;
-					}
-					print(jsonrpc.success(message.payload.id, 'ok'));
-				},
-				[RPC_METHOD.RUNNER_RESUME]: () => {
-					const [resumed, resumeMsg] = runner.resume(message.payload.params);
-					if (!resumed) {
-						print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Runner not resumed ${resumeMsg}`, 102)));
-						return;
-					}
-					print(jsonrpc.success(message.payload.id, 'ok'));
-				},
-			},
-		}[message.type][message.payload.method]());
-	} catch (err) {
-		log(err);
-		print(jsonrpc.error(0, new jsonrpc.JsonRpcError(`routing error occured ${err}`, 100)));
-		continue;
+router.request(RPC_METHOD.RUNNER_START, async (message) => {
+	const [started, startedMsg] = await runner.start(message.payload.params);
+	if (!started) {
+		print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Runner not started: ${startedMsg}`, 101)));
+		return;
 	}
-}
+	print(jsonrpc.success(message.payload.id, 'ok'));
+});
+
+router.request(RPC_METHOD.RUNNER_STOP, (message) => {
+	const [stopped, stopMsg] = runner.stop(message.payload.params);
+	if (!stopped) {
+		print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Runner not stopped ${stopMsg}`, 102)));
+		return;
+	}
+	print(jsonrpc.success(message.payload.id, 'ok'));
+});
+
+router.request(RPC_METHOD.RUNNER_RESUME, (message) => {
+	const [resumed, resumeMsg] = runner.resume(message.payload.params);
+	if (!resumed) {
+		print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Runner not resumed ${resumeMsg}`, 103)));
+		return;
+	}
+	print(jsonrpc.success(message.payload.id, 'ok'));
+});
+
+router.request(RPC_METHOD.CONFIG_GET, (message) => {
+	if (message.payload.params.key === 'quick.data.source') {
+		print(jsonrpc.success(message.payload.id, { path: quickDataPath }));
+		return;
+	}
+	print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError(`Unrecognized key`, 104)));
+});
+
+router.request(RPC_METHOD.QUICKDATA_UPDATE, (message) => {
+	const text = quickDataRefresh(message.payload.params.mod, message.payload.params.method) || '';
+	print(jsonrpc.success(message.payload.id, { text }));
+});

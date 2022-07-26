@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 --]]
 
 local api = vim.api
-local Filetype = require'plenary.filetype'
+local Filetype = require 'plenary.filetype'
 local Panel = require 'lab.panel'
 local VirtualText = require 'lab.virtual_text'
 local Process = require 'lab.process'
@@ -40,9 +40,14 @@ local state = {
 	active = false,
 	instances = {},
 	instance_count = 0,
+	unregister = nil,
 }
 
 function CodeRunner.run()
+	if not state.active then 
+		vim.notify("CodeRunner is currently disabled.", "error", { title = "Lab.nvim"});
+		return
+	end
 
 	local buf_handle = api.nvim_get_current_buf()
 	local file_path = api.nvim_buf_get_name(buf_handle)
@@ -59,12 +64,12 @@ function CodeRunner.run()
 		CodeRunner.update(file_path)
 		return
 	end
-	
+
 	-- Proceed only if the file type is supported.
 	local file_type = Filetype.detect(file_path);
 	if not supported_file_types[file_type] then
-			vim.notify("File type: " .. file_type .. " not supported.", "error", { title = "Lab.nvim"});
-		return 
+		vim.notify("File type: " .. file_type .. " not supported.", "error", { title = "Lab.nvim"});
+		return
 	end
 
 	local run_id = os.time()
@@ -74,13 +79,13 @@ function CodeRunner.run()
 		run_id = run_id, 
 		config = Config.read(file_path) 
 	}
-	
+
 	state.instance_count = state.instance_count + 1
 
 	if (state.instance_count == 1) then
-		Process:start(CodeRunner.handler)
+		state.unregister = Process:register(CodeRunner.handler)
 	end
-	
+
 	Process:send({
 		jsonrpc = "2.0",
 		id = file_path,
@@ -115,7 +120,7 @@ function CodeRunner.update(file_path)
 			method = "Lab.Runner.Start", 
 			params = { 
 				file = file_path, 
-				config = state.instances[file_path].config 
+				config = state.instances[file_path].config
 			} 
 		})
 	end, 1)
@@ -127,9 +132,15 @@ function CodeRunner.update(file_path)
 end
 
 function CodeRunner.stop()
-
+	if not state.active then 
+		vim.notify("CodeRunner is currently disabled.", "error", { title = "Lab.nvim"});
+		return
+	end
+	
 	local buf_handle = api.nvim_get_current_buf()
 	local file_path = api.nvim_buf_get_name(0)
+	
+	if not state.instances[file_path] then return end
 
 	state.instances[file_path] = nil
 	state.instance_count = state.instance_count - 1
@@ -139,7 +150,7 @@ function CodeRunner.stop()
 	Panel:write("- Stopped on " .. file_path)
 
 	if (state.instance_count == 0) then
-		Process:stop()
+		state.unregister()
 	end
 
 end
@@ -158,11 +169,19 @@ function CodeRunner.resume()
 end
 
 function CodeRunner.config()
+	if not state.active then 
+		vim.notify("CodeRunner is currently disabled.", "error", { title = "Lab.nvim"});
+		return
+	end
 	local file_path = api.nvim_buf_get_name(0)
 	Config.edit(file_path)
 end
 
 function CodeRunner.panel()
+	if not state.active then 
+		vim.notify("CodeRunner is currently disabled.", "error", { title = "Lab.nvim"});
+		return
+	end
 	if Panel.is_open then
 		Panel:close()
 	else
@@ -170,7 +189,7 @@ function CodeRunner.panel()
 	end
 end
 
-function CodeRunner.setup()
+function CodeRunner.setup(opts)
 	if state.active == true then return end
 	Panel:init()
 	api.nvim_exec([[
@@ -185,12 +204,8 @@ function CodeRunner.setup()
 end
 
 function CodeRunner.handler(msg)
-	if msg.error then 
-		vim.notify(msg.error.message, "error", { title = "Lab.nvim"});
-		return
-	end
 
-	if not msg.method then return end;
+	if not msg.method or not msg.method == "Lab.Runner.Feedback" then return end;
 
 	local buf_handle = state.instances[msg.params.file].buf_handle
 	local run_id = state.instances[msg.params.file].run_id

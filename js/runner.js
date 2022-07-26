@@ -21,9 +21,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import jsonrpc from 'jsonrpc-lite';
 import { logger } from './util/logging.js';
 import { print, tryRun } from './util/index.js';
-import { RUNNER_PATHS, PROCESSORS, PROCESSOR_PATHS } from './constants.js'
+import { RUNNER_PATHS, PROCESSORS, PROCESSOR_PATHS, RPC_METHOD } from './constants.js'
 
-const log = logger('runner');
+const log = logger('lab.runner');
 
 export const runner = {
 
@@ -65,7 +65,7 @@ export const runner = {
 		// Output runner notifications to consumer(s):
 		runner.on('notification', data => {
 			log(args.file, data);
-			const message = jsonrpc.notification('update', { file: args.file, ...data });
+			const message = jsonrpc.notification(RPC_METHOD.RUNNER_FEEDBACK, { file: args.file, ...data });
 			print(message);
 		});
 

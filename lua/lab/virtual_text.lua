@@ -47,20 +47,22 @@ function VirtualText:render(opts)
 		current = self.lines[tostring(opts.buf_handle)][tostring(opts.line_num)]
 	end
 
-	-- This buffer / line has text and the text is the same as the new text.
-	if (current and current.text == opts.text) then
+	-- Skip writing identical text to the same line when the existing text is from a previous run.
+	if (current and (current.text == opts.text) and (current.run_id ~= opts.run_id)) then
 		self.lines[tostring(opts.buf_handle)][tostring(opts.line_num)].run_id = opts.run_id
 		return
 	end
 
-	-- This buffer / line has text and:
+	-- This line currently has text and:
 	if current then
-		if current.run_id == opts.run_id then -- It's from the current run:
+		-- It's from the current run (append):
+		if current.run_id == opts.run_id then
 			if opts.append then
 				opts.text = current.text .. " │ " .. opts.text
 				mark_opts.id = current.markId
 			end
-		else -- It's from a previous run:
+		-- It's from a previous run (delete):
+		else
 			api.nvim_buf_del_extmark(opts.buf_handle, self.namespace, current.markId);
 		end
 	end
