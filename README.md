@@ -16,7 +16,7 @@
 - The code runner currently supports JavaScript, Typescript, Python, and Lua with additional language support planned.
 - The goal of the code runner isn't to be a full-fledged debugger, rather it aims to provide a simple rapid feedback mechanism that can be useful while working on prototyping tasks.
 
-[code-runner-demo.mp4](https://user-images.githubusercontent.com/106625318/180894395-fa047233-33f1-4b86-99ed-95549b70a97d.mp4)
+[code-runner-demo.mp4](https://user-images.githubusercontent.com/106625318/181047786-ca256229-bafa-471f-a8ca-420068a4de7d.mp4)
 
 #### Commands
 
