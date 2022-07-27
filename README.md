@@ -78,10 +78,21 @@ require('lab').setup {
 
 **Important**: Notice the post install hook. Lab.nvim has a few internal node dependencies that should be installed. See: [package.json](https://github.com/0x100101/lab.nvim/blob/main/js/package.json#L10)
 
+Packer
+```lua
+return require('packer').startup(function(use)
+	use { '0x100101/lab.nvim', run = 'cd js && npm ci', requires = { 'nvim-lua/plenary.nvim' } }
+end)
+```
+
+Vim Plug
 ```
 Plug 'nvim-lua/plenary.nvim'
 Plug '0x100101/lab.nvim', { 'do': 'cd js && npm ci' }
+```
 
+Setup options (defualts illustrated below)
+```lua
 require('lab').setup {
   code_runner = {
     enabled = true,
@@ -90,7 +101,10 @@ require('lab').setup {
     enabled = true,
   }
 }
+```
 
+Key Mappings
+```
 nnoremap <F4> :Lab code stop<CR>
 nnoremap <F5> :Lab code run<CR>
 nnoremap <F6> :Lab code panel<CR>
