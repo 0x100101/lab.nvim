@@ -29,7 +29,7 @@ source.update_record = nil
 source.init = function(data_path, update_fn)
 	vim.defer_fn(function()
 		source.update_record = update_fn
-		if vim.fn.filereadable(data_path) then
+		if vim.fn.filereadable(data_path) ~= 0 then
 			source.data = vim.fn.json_decode(vim.fn.readfile(data_path))
 			for k, v in ipairs(source.data) do
 				source.data_lookup[v.word] = k;
