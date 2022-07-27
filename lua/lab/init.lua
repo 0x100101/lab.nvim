@@ -20,7 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 local Process = require 'lab.process'
 local CodeRunner = require 'lab.code_runner'
-local QuickData = require 'lab.quick_data'
 
 local Lab = {}
 local state = { active = false }
@@ -36,8 +35,8 @@ local default_opts = {
 
 function Lab.setup(opts)
 	if state.active == true then return end
-
-	opts = vim.tbl_deep_extend('force', default_opts, opts)
+	
+	opts = vim.tbl_deep_extend('force', default_opts, opts or {})
 
 	if opts.code_runner.enabled or opts.quick_data.enabled then
 		Process:start()
@@ -48,7 +47,12 @@ function Lab.setup(opts)
 	end
 
 	if opts.quick_data.enabled then
-		QuickData.setup(opts)
+		local has_cmp, cmp = pcall(require, 'cmp')
+		if has_cmp then
+			require('lab.quick_data').init()
+		else
+			vim.notify("Quick data feature requires nvim cmp", "error", { title = "Lab.nvim"});
+		end
 	end
 
 	state.active = true;

@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 local Process = require 'lab.process'
 local QuickDataComp = require 'lab.quick_data_cmp'
+local cmp = require 'cmp'
 
 local QuickData = {
 	handlers = {},
@@ -34,16 +35,7 @@ Process:register(function(msg)
 	end;
 end)
 
-function QuickData.setup(opts)
-	local has_cmp, cmp = pcall(require, 'cmp')
-	if has_cmp then
-		QuickData.init(cmp)
-	else
-		vim.notify("Quick data feature requires nvim cmp", "error", { title = "Lab.nvim"});
-	end
-end
-
-function QuickData.init(cmp)
+function QuickData.init()
 	local id = "quickdata.init"
 	cmp.register_source('lab.quick_data', QuickDataComp.new())
 	local initHandler = function(data)
