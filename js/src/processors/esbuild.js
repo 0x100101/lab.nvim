@@ -18,24 +18,34 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-export const print = (data) => {
-	console.log(JSON.stringify(data));
-}
+import esbuild from 'esbuild';
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import { logger } from '@/util/logging.js';
 
-export const tryRun = async (cb) => {
+const log = logger('esbuild');
+
+export default async (filePath) => {
 	try {
-		const ret = await cb();
-		return [ret, null];
-	}
-	catch (err) {
-		return [null, err];
-	}
-}
+		const fileName = path.basename(filePath).replace(path.extname(filePath), '.js');
+		const tmpPath = await fs.realpath(os.tmpdir());
+		const outPath = path.join(tmpPath, fileName);
 
-export const rpcid = (function idGenerator() {
-	let i = 0;
-	return () => {
-		if (i++ == 50) i = 1;
-		return i;
+		log(outPath);
+
+		esbuild.buildSync({
+			entryPoints: [filePath],
+			sourcemap: true,
+			bundle: true,
+			platform: 'node',
+			target: ['es2020'],
+			outfile: outPath,
+			logLevel: 'silent',
+		});
+		return outPath;
 	}
-})();
+	catch(err) {
+		throw new Error('esbuild failed');
+	}
+};

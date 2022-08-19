@@ -20,41 +20,40 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 export const DEBUG = false;
 
-export const RPC_TYPE = {
-	REQUEST: 'request',
-	NOTIFICATION: 'notification',
-};
-
-export const RPC_METHOD = {
-	CONFIG_GET: 'Lab.Config.Get',
-	RUNNER_START: 'Lab.Runner.Start',
-	RUNNER_STOP: 'Lab.Runner.Stop',
-	RUNNER_RESUME: 'Lab.Runner.Resume',
-	RUNNER_FEEDBACK: 'Lab.Runner.Feedback',
-	QUICKDATA_UPDATE: 'Lab.QuickData.Update',
+export enum CodeRunnerMethod {
+	Start = 'Lab.Runner.Start',
+	Stop = 'Lab.Runner.Stop',
+	Resume = 'Lab.Runner.Resume',
+	Feedback = 'Lab.Runner.Feedback',
 }
 
-export const PROCESSORS = {
-	ESBUILD: 'lab.esbuild'
+export enum ConfigMethod {
+	Get = 'Lab.Config.Get',
 }
 
-export const RUNNERS = {
-	NODE: 'lab.node',
-	PYTHON: 'lab.python',
-	LUA: 'lab.lua',
-};
+export enum QuickDataMethod {
+	Update = 'Lab.QuickData.Update',
+}
+
+export enum Processors {
+	EsBuild = 'lab.esbuild',
+}
+
+export enum Runners {
+	Node = 'lab.node',
+	Python = 'lab.python',
+	Lua = 'lab.lua',
+}
 
 export const PROCESSORS_PATH = './processors/';
 export const RUNNERS_PATH = './runners/';
 
 export const PROCESSOR_PATHS = {
-	[PROCESSORS.ESBUILD]: PROCESSORS_PATH + 'esbuild.js',
+	[Processors.EsBuild]: PROCESSORS_PATH + 'esbuild.js',
 };
 
 export const RUNNER_PATHS = {
-	[RUNNERS.NODE]: RUNNERS_PATH + 'node/node.js',
-	[RUNNERS.PYTHON]: RUNNERS_PATH + 'python/python.js',
-	[RUNNERS.LUA]: RUNNERS_PATH + 'lua/lua.js',
+	[Runners.Node]: RUNNERS_PATH + 'node/node.js',
+	[Runners.Python]: RUNNERS_PATH + 'python/python.js',
+	[Runners.Lua]: RUNNERS_PATH + 'lua/lua.js',
 };
-
-

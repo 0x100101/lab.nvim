@@ -17,35 +17,29 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
+import { GenericCallback } from '@/types.js';
 
-import esbuild from 'esbuild';
-import path from 'node:path';
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import { logger } from '../util/logging.js';
+export const print = (data: unknown) => {
+	console.log(JSON.stringify(data));
+};
 
-const log = logger('esbuild');
+type tryRunSuccess<T> = [T, null]
+type tryRunError = [null, Error];
 
-export default async (filePath) => {
+export const tryRun = async <T>(cb: GenericCallback): Promise<tryRunSuccess<T> | tryRunError> => {
 	try {
-		const fileName = path.basename(filePath).replace(path.extname(filePath), '.js');
-		const tmpPath = await fs.realpath(os.tmpdir());
-		const outPath = path.join(tmpPath, fileName);
-		
-		log(outPath);
+		const ret = await cb();
+		return [ret, null];
+	}
+	catch (err) {
+		return [null, err as Error];
+	}
+};
 
-		esbuild.buildSync({
-			entryPoints: [filePath],
-			sourcemap: true,
-			bundle: true,
-			platform: 'node',
-			target: ['es2020'],
-			outfile: outPath,
-			logLevel: 'silent',
-		});
-		return outPath;
-	}
-	catch(err) {
-		throw new Error('esbuild failed');
-	}
-}
+export const rpcid = (function idGenerator() {
+	let i = 0;
+	return () => {
+		if (i++ == 50) i = 1;
+		return i;
+	};
+})();

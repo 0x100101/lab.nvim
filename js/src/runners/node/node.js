@@ -25,8 +25,8 @@ import process from 'node:process';
 import EventEmitter from 'node:events';
 import { WebSocket } from 'ws';
 import { decode } from 'sourcemap-codec';
-import { logger } from '../../util/logging.js';
-import { rpcid } from '../../util/index.js';
+import { logger } from '@/util/logging.js';
+import { rpcid } from '@/util/index.js';
 
 const WS_REGEX = /ws:\/\/\S*/ig;
 const log = logger('coderunner.lab.node');
@@ -37,7 +37,7 @@ export const codeRunner = {
 
 	async init({ file, useSourceMap = false, ip = '127.0.0.1', port = '8086' }) {
 		const emitter = new EventEmitter();
-		
+
 		if (useSourceMap) {
 			const sourceMap = await fs.readFile(file + '.map', { encoding: 'utf8' });
 			const mappings = JSON.parse(sourceMap).mappings;
@@ -61,7 +61,7 @@ export const codeRunner = {
 			const filtered = this.filterMessage(file, ws, message);
 			if (filtered) return;
 
-			const response = this.processMessage(file, message)
+			const response = this.processMessage(file, message);
 			if (response) emitter.emit('notification', response);
 		});
 
@@ -71,7 +71,7 @@ export const codeRunner = {
 
 		return emitter;
 	},
-	
+
 	findFrame(file, callFrames) {
 		return callFrames.find(frame => frame.url === `file://${file}`);
 	},
@@ -81,7 +81,7 @@ export const codeRunner = {
 		if (frame && frame !== `file://${file}`) {
 			return true;
 		}
-		
+
 		if (message.method === 'Debugger.paused') {
 			if (message.params.reason === 'Break on start') {
 				ws.send({ id: rpcid(), method: 'Debugger.resume', params: { terminateOnResume: false } });
@@ -97,22 +97,22 @@ export const codeRunner = {
 		if (message.method === 'Debugger.paused') {
 			const frame = this.findFrame(file, message.params.callFrames);
 			if (!frame) return;
-			
+
 			return {
 				event: 'paused',
 				line: (offsets) ? offsets[frame.location.lineNumber][0][2] : frame.location.lineNumber,
 				col: frame.location.columnNumber,
 				text: 'Paused',
-			}
+			};
 		}
-		
+
 		if (message.method === 'Runtime.exceptionThrown') {
 			// In the case of an error, if we can't find a frame originating in the active file, for clarity we'll still show it on line one.
 			let frame = this.findFrame(file, message.params.exceptionDetails.stackTrace.callFrames);
 			if (!frame) frame = { lineNumber: 0, columnNumber: 0 };
-			
+
 			const description = message.params.exceptionDetails.exception.preview.properties.find(items => items.name === 'message');
-			
+
 			return {
 				event: 'error',
 				line: (offsets) ? offsets[frame.lineNumber][0][2] : frame.lineNumber,
@@ -123,11 +123,11 @@ export const codeRunner = {
 		}
 
 		if (message.method === 'Runtime.consoleAPICalled') {
-			
+
 			const frame = this.findFrame(file, message.params.stackTrace.callFrames);
 			if (!frame) return;
 
-			let preview = ``;
+			let preview = '';
 
 			message.params.args.forEach((arg, index, arr) => {
 				switch (arg.type) {
@@ -142,18 +142,18 @@ export const codeRunner = {
 						break;
 					case 'object':
 						if (arg.subtype === 'null') {
-							preview += 'null'
+							preview += 'null';
 						}
 						else if (arg.subtype === 'array') {
-							preview += `[`;
+							preview += '[';
 							arg.preview.properties.forEach((prop, index, arr) => {
 								const value = (prop.type === 'function') ? '' : (prop.type === 'string') ? `"${prop.value}"` : prop.value;
 								preview += ` ${value}`;
-								if (index !== (arr.length - 1)) preview += `,`;
+								if (index !== (arr.length - 1)) preview += ',';
 							});
-							preview += ` ]`;
+							preview += ' ]';
 						} else {
-							preview += `{`;
+							preview += '{';
 							if (arg.preview.properties.length === 0) {
 								preview += ' ' + arg.preview.description;
 							}
@@ -161,22 +161,22 @@ export const codeRunner = {
 								arg.preview.properties.forEach((prop, index, arr) => {
 									const value = (prop.type === 'function') ? '' : (prop.type === 'string') ? `"${prop.value}"` : prop.value;
 									preview += ` ${prop.name}: ${value}`;
-									if (index !== (arr.length - 1)) preview += `,`;
+									if (index !== (arr.length - 1)) preview += ',';
 								});
 							}
-							preview += ` }`;
+							preview += ' }';
 						}
 						break;
 					default:
 						preview += `${arg.value}`;
 						break;
 				}
-				if (index !== (arr.length - 1)) preview += `, `
+				if (index !== (arr.length - 1)) preview += ', ';
 			});
-			
+
 			preview = preview.replaceAll(/\n|\t|\r/g, ' ');
 			preview = preview.replaceAll(/\s{2,}/g, ' ');
-			
+
 			if (message.params.type === 'trace') {
 				if (preview === '"console.trace"') preview = '';
 				if (preview !== '') preview += ' ';
@@ -188,8 +188,8 @@ export const codeRunner = {
 				});
 				preview = preview.slice(0, -3);
 			}
-			
-			if (offsets) log(offsets[frame.lineNumber])
+
+			if (offsets) log(offsets[frame.lineNumber]);
 
 			return {
 				event: 'log',
@@ -213,13 +213,13 @@ export const codeRunner = {
 
 			spawned.processData = (data) => {
 				spawned.url = data.toString().match(WS_REGEX);
-				log(spawned.url)
+				log(spawned.url);
 				if (spawned.url) {
 					resolve(spawned);
 				} else {
 					reject('no url emitted by server');
 				}
-			}
+			};
 
 			spawned.server.stdout.once('data', spawned.processData);
 			spawned.server.stderr.once('data', spawned.processData);
@@ -230,18 +230,18 @@ export const codeRunner = {
 	},
 
 	async initConnection(url) {
-		return new Promise(async (resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			try {
 				const ws = new WebSocket(url);
 				const send = ws.send;
 				ws.send = function(payload) {
 					send.apply(this, [JSON.stringify(payload)]);
-				}
+				};
 				ws.on('open', () => {
 					resolve(ws);
-				})
+				});
 			} catch (err) {
-				reject(err)
+				reject(err);
 			}
 		});
 	},

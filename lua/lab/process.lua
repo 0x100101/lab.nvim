@@ -34,7 +34,7 @@ end
 
 function Process:register(handler)
 	table.insert(self.handlers, handler)
-	return function() 
+	return function()
 		table.remove(self.handlers, Util.tablefind(self.handlers, handler))
 	end
 end
@@ -43,7 +43,7 @@ function Process:start()
 	if self.running then return end
 	self.instance = Job:new({
 		command = 'node',
-		args = { script_path() .. '../../js/index.js' },
+		args = { script_path() .. '../../js/dist/index.js' },
 
 		on_stdout = function (error, data)
 			local success, msg = pcall(function()
@@ -52,7 +52,7 @@ function Process:start()
 
 			if not success then return end
 
-			if msg.error then 
+			if msg.error then
 				vim.notify(msg.error.message, "error", { title = "Lab.nvim"});
 				return
 			end

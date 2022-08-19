@@ -19,29 +19,33 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import { spawn } from 'node:child_process';
-import injectionRunner from '../base/injection-runner.js';
-import injection, { injectionOffset } from './injection.js'
+import injectionRunner from '@/runners/base/injection-runner.js';
+import injection, { injectionOffset } from '@/runners/python/injection.js';
 
 const dynamicReplace = (str, substr, newSubstr = null) => {
 	const regex = new RegExp(`${substr}`, 'g');
 	return str.replaceAll(regex, newSubstr || '');
-}
+};
 
-const stripFileName = (str, tmpFileName, fileName) => {
-	return dynamicReplace(str, `\\.\\.\\.\\S+${tmpFileName}`, fileName);
-}
-
-const stripLineNumbers = (str) => {
-	return str.replaceAll(/:[0-9]+:/g, '');
-}
+const adjustLineNumbers = (str) => {
+	const LINENUM_REGEX = /line ([0-9]+)/g;
+	const matches = str.matchAll(LINENUM_REGEX);
+	if (!matches) return str;
+	for (const match of matches) {
+		str = str.replace(match[0], parseInt(match[1], 10) - injectionOffset);
+	}
+	return str;
+};
 
 const runner = {
 
-	name: 'lab.lua',
+	name: 'lab.pdb',
 	embed: injection,
+	errorBuffer: [],
+	errorIngestionCount: 0,
 
 	spawner(file) {
-		return spawn('lua', [file]);
+		return spawn('python3', ['-u', file]);
 	},
 
 	stdout(data) {
@@ -49,37 +53,55 @@ const runner = {
 		lines.forEach(line => {
 			line = line.replaceAll(/\n|\r/g, '');
 			line = line.replaceAll(/\t/g, ' ');
-			line = stripFileName(line, this.paths.tmpFileName, this.paths.fileName);
 			this.processMessage(line);
 		});
 	},
 
 	stderr(data) {
-		const message = stripFileName(data, this.paths.tmpFileName);
-		this.processMessage(message);
+		const lines = data.split(/\r?\n/).flatMap(line => {
+			line = line.replaceAll(/\t|\s{2,}/g, '').trim();
+			return line === '' ? [] : line;
+		});
+
+		this.errorBuffer = [...this.errorBuffer, ...lines];
+		this.errorIngestionCount++;
+
+		if (this.errorIngestionCount === 2) {
+			this.processError(this.errorBuffer);
+			this.errorIngestionCount = 0;
+			this.errorBuffer = [];
+		}
+	},
+
+	processError(lines) {
+
+		const LINENUM_REGEX = /line ([0-9]+)/;
+		const lineNumberMatch = lines[1].match(LINENUM_REGEX);
+		const lineNumber = lineNumberMatch ? lineNumberMatch[1] - injectionOffset : 0;
+
+		this.emitter.emit('notification', {
+			event: 'error',
+			line: lineNumber,
+			col: null,
+			text: lines[lines.length - 1],
+			description: '',
+		});
 	},
 
 	processMessage(message) {
 		this.log(message);
 
-		// Error:
-		if (message.startsWith('lua:')) {
-
-			const lines = message.split(/\r?\n/);
-
-			const LINENUM_REGEX = /:([0-9]+):/;
+		// Breakpoint
+		if (message.startsWith('>')) {
+			const LINENUM_REGEX = /\(([0-9]+)\)/;
 			const lineNumberMatch = message.match(LINENUM_REGEX);
 			const lineNumber = lineNumberMatch ? lineNumberMatch[1] - injectionOffset : 0;
-			
-			let text = stripLineNumbers(lines[0]);
-			text = text.replace('lua:', '');
 
 			this.emitter.emit('notification', {
-				event: 'error',
+				event: 'paused',
 				line: lineNumber,
 				col: null,
-				text: text.trim(),
-				description: '',
+				text: 'Paused',
 			});
 			return;
 		}
@@ -95,21 +117,20 @@ const runner = {
 				let text = message.replace(TOKEN_REGEX, '').trim();
 				text = text.replaceAll(/\n|\t|\r/g, ' ');
 				text = text.replaceAll(/\s{2,}/g, ' ');
-				text = stripLineNumbers(text);
-		
-				const logType = text.startsWith('stack traceback:') ? 'info' : null;
-				
+				text = dynamicReplace(text, this.paths.tmpFilePath, this.paths.fileName);
+				text = adjustLineNumbers(text);
+
 				this.emitter.emit('notification', {
 					event: 'log',
-					type: logType,
-					line: parseInt(lineNumber, 10),
+					type: null,
+					line: parseInt(lineNumber),
 					col: null,
-					text: text.trim(),
+					text: text,
 				});
-				return;
 			}
 		}
 	},
+
 };
 
 export const codeRunner = Object.assign(Object.create(injectionRunner), runner);

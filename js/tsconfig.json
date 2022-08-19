@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": "./src",
+    "moduleResolution": "node16",
+    "module": "esnext",
+    "target": "esnext",
+    "declaration": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "exclude": [
+    "./node_modules",
+    "./dist"
+  ]
+}

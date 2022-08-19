@@ -22,15 +22,15 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs/promises';
 import EventEmitter from 'node:events';
-import { logger } from '../../util/logging.js';
-import { tryRun } from '../../util/index.js';
-import { murmurhash3 } from '../../util/murmurhash.js';
+import { logger } from '@/util/logging.js';
+import { tryRun } from '@/util/index.js';
+import { murmurhash3 } from '@/util/murmurhash.js';
 
 export default {
 
 	async init({ file }) {
 		this.log = logger(`coderunner.${this.name}`);
-		
+
 		this.paths = {};
 		this.paths.fileName = path.basename(file);
 		this.paths.tmpDir = await fs.realpath(os.tmpdir());
@@ -39,30 +39,30 @@ export default {
 
 		const code = await fs.readFile(file, { encoding: 'utf8' });
 		await fs.writeFile(this.paths.tmpFilePath, (this.embed + code));
-		
+
 		this.log(this.paths.tmpFilePath);
 
 		const [spawned, spawnedError] = await tryRun(() => {
 			return this.runCode(this.paths.tmpFilePath);
 		});
-		
+
 		if (spawnedError) throw new Error(spawnedError.message);
-		
+
 		spawned.proc.stdout.on('data', data => {
 			this.stdout(data.toString());
 		});
 
 		spawned.proc.stderr.on('data', data => {
 			this.stderr(data.toString());
-		})
-		
+		});
+
 		this.emitter = new EventEmitter();
 		this.emitter.on('stop', spawned.stop);
 		this.emitter.on('resume', spawned.resume);
-		
+
 		return this.emitter;
 	},
-	
+
 	async runCode(file) {
 		return new Promise((resolve, reject) => {
 			const spawned = {};
@@ -72,7 +72,7 @@ export default {
 			spawned.resume = () => spawned.proc.stdio[0].write('c\n');
 			process.on('uncaughtExceptionMonitor', spawned.stop);
 			setTimeout(() => {
-				resolve(spawned)
+				resolve(spawned);
 			}, 1);
 		});
 	},
