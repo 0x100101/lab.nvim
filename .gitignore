@@ -1,2 +1,4 @@
 node_modules/
+js/dist/
+.idea/
 *.log

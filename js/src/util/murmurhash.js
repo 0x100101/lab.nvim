@@ -1,3 +1,4 @@
+/* eslint-disable */
 /*
 Copyright (c) 2011 Gary Court
 
@@ -39,14 +40,14 @@ export const murmurhash3 = (key, seed) => {
 	k1 = 0;
 
 	switch (remainder) {
-		case 3: k1 ^= (key.charCodeAt(i + 2) & 0xff) << 16;
-		case 2: k1 ^= (key.charCodeAt(i + 1) & 0xff) << 8;
-		case 1: k1 ^= (key.charCodeAt(i) & 0xff);
+	case 3: k1 ^= (key.charCodeAt(i + 2) & 0xff) << 16;
+	case 2: k1 ^= (key.charCodeAt(i + 1) & 0xff) << 8;
+	case 1: k1 ^= (key.charCodeAt(i) & 0xff);
 
-			k1 = (((k1 & 0xffff) * c1) + ((((k1 >>> 16) * c1) & 0xffff) << 16)) & 0xffffffff;
-			k1 = (k1 << 15) | (k1 >>> 17);
-			k1 = (((k1 & 0xffff) * c2) + ((((k1 >>> 16) * c2) & 0xffff) << 16)) & 0xffffffff;
-			h1 ^= k1;
+		k1 = (((k1 & 0xffff) * c1) + ((((k1 >>> 16) * c1) & 0xffff) << 16)) & 0xffffffff;
+		k1 = (k1 << 15) | (k1 >>> 17);
+		k1 = (((k1 & 0xffff) * c2) + ((((k1 >>> 16) * c2) & 0xffff) << 16)) & 0xffffffff;
+		h1 ^= k1;
 	}
 
 	h1 ^= key.length;
@@ -58,4 +59,4 @@ export const murmurhash3 = (key, seed) => {
 	h1 ^= h1 >>> 16;
 
 	return h1 >>> 0;
-}
+};

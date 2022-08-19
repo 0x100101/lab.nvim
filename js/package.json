@@ -4,18 +4,33 @@
   "description": "",
   "main": "index.js",
   "type": "module",
-  "scripts": {},
+  "engines": {
+    "node": ">=16.10.0"
+  },
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "lint:fix": "eslint --fix --ext .js,.ts ."
+  },
   "author": "Dan Peterson",
   "license": "GPL-3.0-only",
   "dependencies": {
     "@faker-js/faker": "7.3.0",
-    "esbuild": "0.14.49",
+    "esbuild": "0.15.4",
     "jsonrpc-lite": "2.2.0",
     "simple-node-logger": "21.8.12",
     "sourcemap-codec": "1.4.8",
     "ws": "8.8.0"
   },
   "devDependencies": {
-    "eslint": "^8.19.0"
+    "@types/node": "18.7.5",
+    "@typescript-eslint/eslint-plugin": "5.33.1",
+    "@typescript-eslint/parser": "5.33.1",
+    "eslint": "8.22.0",
+    "eslint-config-standard-with-typescript": "22.0.0",
+    "eslint-plugin-import": "2.26.0",
+    "eslint-plugin-n": "15.2.4",
+    "eslint-plugin-promise": "6.0.0",
+    "tsc-alias": "1.7.0",
+    "typescript": "4.7.4"
   }
 }

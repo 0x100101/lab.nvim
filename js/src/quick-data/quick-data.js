@@ -51,8 +51,9 @@ const modules = [
 const tmpPath = await fs.realpath(os.tmpdir());
 export const dataFilePath = path.join(tmpPath, 'faker.json');
 
-// Faker emits warnings for deprectaed methods.
+// Faker emits warnings for deprecated methods.
 // This will silence them for now, but isn't a good long term solution.
+// eslint-disable-next-line @typescript-eslint/no-empty-function
 console.warn = () => {};
 
 export const generate = async () => {
@@ -73,18 +74,19 @@ export const generate = async () => {
 						insertText: fake.toString(),
 					});
 				}
+				// eslint-disable-next-line no-empty
 				catch {}
 			}
 		}
 	}
 	await fs.writeFile(dataFilePath, JSON.stringify(data));
-}
+};
 
 export const refresh = (mod, method) => {
 	if (Object.hasOwn(faker, mod) && method in faker[mod]) {
 		return faker[mod][method]();
 	}
 	return null;
-}
+};
 
-generate()
+generate();
