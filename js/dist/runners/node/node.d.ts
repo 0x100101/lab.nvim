@@ -1,4 +1,5 @@
 export namespace codeRunner {
+    const offsets: null;
     function init({ file, useSourceMap, ip, port }: {
         file: any;
         useSourceMap?: boolean | undefined;

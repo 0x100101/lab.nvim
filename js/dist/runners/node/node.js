@@ -28,14 +28,14 @@ import { logger } from '../../util/logging.js';
 import { rpcid } from '../../util/index.js';
 const WS_REGEX = /ws:\/\/\S*/ig;
 const log = logger('coderunner.lab.node');
-let offsets = null;
 export const codeRunner = {
+    offsets: null,
     async init({ file, useSourceMap = false, ip = '127.0.0.1', port = '8086' }) {
         const emitter = new EventEmitter();
         if (useSourceMap) {
             const sourceMap = await fs.readFile(file + '.map', { encoding: 'utf8' });
             const mappings = JSON.parse(sourceMap).mappings;
-            offsets = decode(mappings);
+            this.offsets = decode(mappings);
         }
         const server = await this.initServer(file, ip, port);
         const ws = await this.initConnection(server.url);
@@ -84,7 +84,7 @@ export const codeRunner = {
                 return;
             return {
                 event: 'paused',
-                line: (offsets) ? offsets[frame.location.lineNumber][0][2] : frame.location.lineNumber,
+                line: (this.offsets) ? this.offsets[frame.location.lineNumber][0][2] : frame.location.lineNumber,
                 col: frame.location.columnNumber,
                 text: 'Paused',
             };
@@ -97,7 +97,7 @@ export const codeRunner = {
             const description = message.params.exceptionDetails.exception.preview.properties.find(items => items.name === 'message');
             return {
                 event: 'error',
-                line: (offsets) ? offsets[frame.lineNumber][0][2] : frame.lineNumber,
+                line: (this.offsets) ? this.offsets[frame.lineNumber][0][2] : frame.lineNumber,
                 col: frame.columnNumber,
                 text: description.value,
                 description: message.params.exceptionDetails.exception.description.replaceAll(/\n/g, ''),
@@ -171,12 +171,12 @@ export const codeRunner = {
                 });
                 preview = preview.slice(0, -3);
             }
-            if (offsets)
-                log(offsets[frame.lineNumber]);
+            if (this.offsets)
+                log(this.offsets[frame.lineNumber]);
             return {
                 event: 'log',
                 type: message.params.type,
-                line: (offsets) ? offsets[frame.lineNumber][0][2] : frame.lineNumber,
+                line: (this.offsets) ? this.offsets[frame.lineNumber][0][2] : frame.lineNumber,
                 col: frame.columnNumber,
                 text: preview,
             };
