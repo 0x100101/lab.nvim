@@ -58,8 +58,14 @@ export const runner = {
         const { filePath, useSourceMap } = processingData;
         // Start runner:
         const [runner, runnerError] = await tryRun(async () => {
-            const { codeRunner } = await import(`${RUNNER_PATHS[config.runner]}`);
-            return await codeRunner.init({ file: filePath, useSourceMap });
+            if (config.runner === 'lab.node') {
+                const { init } = await import(`${RUNNER_PATHS[config.runner]}`);
+                return await init({ file: filePath, useSourceMap });
+            }
+            else {
+                const { codeRunner } = await import(`${RUNNER_PATHS[config.runner]}`);
+                return await codeRunner.init({ file: filePath, useSourceMap });
+            }
         });
         if (runnerError)
             return [false, runnerError.message];
