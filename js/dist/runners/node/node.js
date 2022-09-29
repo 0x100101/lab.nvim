@@ -17,209 +17,72 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
-import { spawn } from 'node:child_process';
-import util from 'node:util';
-import fs from 'node:fs/promises';
-import process from 'node:process';
-import EventEmitter from 'node:events';
-import { WebSocket } from 'ws';
-import { decode } from 'sourcemap-codec';
+import { EventEmitter } from 'events';
+import { consoleHandler, consoleTraceHandler, pauseHandler, errorHandler } from '../../runners/node/message-evaluators/index.js';
+import { establishConnection } from '../../runners/node/web-socket.js';
+import { startDebugger } from '../../runners/node/server.js';
+import { loadSourceMappings } from '../../runners/node/source-map.js';
 import { logger } from '../../util/logging.js';
-import { rpcid } from '../../util/index.js';
-const WS_REGEX = /ws:\/\/\S*/ig;
-const log = logger('coderunner.lab.node');
-export const codeRunner = {
-    offsets: null,
-    async init({ file, useSourceMap = false, ip = '127.0.0.1', port = '8086' }) {
-        const emitter = new EventEmitter();
+const log = logger('coderunner.node');
+export const init = async ({ file = '', useSourceMap = false, ip = '127.0.0.1', port = '8086' }) => {
+    log('Initializing node code-runner on: ', file);
+    const codeRunner = new EventEmitter();
+    const lineMappings = (useSourceMap) ? await loadSourceMappings(file) : [];
+    const debugServer = await startDebugger(file, ip, port);
+    const nodeDebugger = await establishConnection(debugServer.url);
+    codeRunner.on('stop', debugServer.stop);
+    codeRunner.on('resume', nodeDebugger.command.resume);
+    nodeDebugger.connection.on('message', (data) => {
+        const message = JSON.parse(data.toString());
+        message.__file = file;
+        for (const shouldFilter of filters) {
+            if (shouldFilter(message)) {
+                return;
+            }
+        }
+        for (const responder of autoResponders) {
+            const [condition, response] = responder;
+            if (condition(message)) {
+                response(nodeDebugger);
+                return;
+            }
+        }
+        const notification = evaluateMessage(message);
+        if (!notification) {
+            return;
+        }
         if (useSourceMap) {
-            const sourceMap = await fs.readFile(file + '.map', { encoding: 'utf8' });
-            const mappings = JSON.parse(sourceMap).mappings;
-            this.offsets = decode(mappings);
+            notification.line = lineMappings[notification.line]?.[0]?.[2] ?? 0;
         }
-        const server = await this.initServer(file, ip, port);
-        const ws = await this.initConnection(server.url);
-        emitter.on('stop', () => {
-            server.stop();
-        });
-        emitter.on('resume', () => {
-            ws.send({ id: rpcid(), method: 'Debugger.resume', params: { terminateOnResume: false } });
-        });
-        ws.on('message', data => {
-            const message = JSON.parse(data.toString());
-            const filtered = this.filterMessage(file, ws, message);
-            if (filtered)
-                return;
-            const response = this.processMessage(file, message);
-            if (response)
-                emitter.emit('notification', response);
-        });
-        ws.send({ id: rpcid(), method: 'Runtime.enable' });
-        ws.send({ id: rpcid(), method: 'Debugger.enable' });
-        ws.send({ id: rpcid(), method: 'Runtime.runIfWaitingForDebugger' });
-        return emitter;
-    },
-    findFrame(file, callFrames) {
-        return callFrames.find(frame => frame.url === `file://${file}`);
-    },
-    filterMessage(file, ws, message) {
+        codeRunner.emit('notification', notification);
+    });
+    nodeDebugger.command.initialize();
+    return codeRunner;
+};
+const autoResponders = [
+    [
+        (message) => message.method === 'Debugger.paused' && message.params.reason === 'Break on start',
+        (nodeDebugger) => nodeDebugger.command.resume(),
+    ]
+];
+const filters = [
+    (message) => {
         const frame = message.params?.stackTrace?.callFrames?.[0]?.url;
-        if (frame && frame !== `file://${file}`) {
+        if (frame && frame !== `file://${message.__file}`)
             return true;
-        }
-        if (message.method === 'Debugger.paused') {
-            if (message.params.reason === 'Break on start') {
-                ws.send({ id: rpcid(), method: 'Debugger.resume', params: { terminateOnResume: false } });
-                return true;
-            }
-        }
-        return false;
-    },
-    processMessage(file, message) {
-        if (message.method !== 'Debugger.scriptParsed')
-            log(util.inspect(message, false, null));
-        if (message.method === 'Debugger.paused') {
-            const frame = this.findFrame(file, message.params.callFrames);
-            if (!frame)
-                return;
-            return {
-                event: 'paused',
-                line: (this.offsets) ? this.offsets[frame.location.lineNumber][0][2] : frame.location.lineNumber,
-                col: frame.location.columnNumber,
-                text: 'Paused',
-            };
-        }
-        if (message.method === 'Runtime.exceptionThrown') {
-            // In the case of an error, if we can't find a frame originating in the active file, for clarity we'll still show it on line one.
-            let frame = this.findFrame(file, message.params.exceptionDetails.stackTrace.callFrames);
-            if (!frame)
-                frame = { lineNumber: 0, columnNumber: 0 };
-            const description = message.params.exceptionDetails.exception.preview.properties.find(items => items.name === 'message');
-            return {
-                event: 'error',
-                line: (this.offsets) ? this.offsets[frame.lineNumber][0][2] : frame.lineNumber,
-                col: frame.columnNumber,
-                text: description.value,
-                description: message.params.exceptionDetails.exception.description.replaceAll(/\n/g, ''),
-            };
-        }
-        if (message.method === 'Runtime.consoleAPICalled') {
-            const frame = this.findFrame(file, message.params.stackTrace.callFrames);
-            if (!frame)
-                return;
-            let preview = '';
-            message.params.args.forEach((arg, index, arr) => {
-                switch (arg.type) {
-                    case 'string':
-                        preview += `"${arg.value}"`;
-                        break;
-                    case 'function':
-                        preview += `${arg.description})`;
-                        break;
-                    case 'symbol':
-                        preview += `${arg.description})`;
-                        break;
-                    case 'object':
-                        if (arg.subtype === 'null') {
-                            preview += 'null';
-                        }
-                        else if (arg.subtype === 'array') {
-                            preview += '[';
-                            arg.preview.properties.forEach((prop, index, arr) => {
-                                const value = (prop.type === 'function') ? '' : (prop.type === 'string') ? `"${prop.value}"` : prop.value;
-                                preview += ` ${value}`;
-                                if (index !== (arr.length - 1))
-                                    preview += ',';
-                            });
-                            preview += ' ]';
-                        }
-                        else {
-                            preview += '{';
-                            if (arg.preview.properties.length === 0) {
-                                preview += ' ' + arg.preview.description;
-                            }
-                            else {
-                                arg.preview.properties.forEach((prop, index, arr) => {
-                                    const value = (prop.type === 'function') ? '' : (prop.type === 'string') ? `"${prop.value}"` : prop.value;
-                                    preview += ` ${prop.name}: ${value}`;
-                                    if (index !== (arr.length - 1))
-                                        preview += ',';
-                                });
-                            }
-                            preview += ' }';
-                        }
-                        break;
-                    default:
-                        preview += `${arg.value}`;
-                        break;
-                }
-                if (index !== (arr.length - 1))
-                    preview += ', ';
-            });
-            preview = preview.replaceAll(/\n|\t|\r/g, ' ');
-            preview = preview.replaceAll(/\s{2,}/g, ' ');
-            if (message.params.type === 'trace') {
-                if (preview === '"console.trace"')
-                    preview = '';
-                if (preview !== '')
-                    preview += ' ';
-                message.params.stackTrace.callFrames.forEach((frame) => {
-                    if (!frame.url.startsWith('node:')) {
-                        const fn = frame.functionName || '<anonymous>';
-                        preview += `${fn}  `;
-                    }
-                });
-                preview = preview.slice(0, -3);
-            }
-            if (this.offsets)
-                log(this.offsets[frame.lineNumber]);
-            return {
-                event: 'log',
-                type: message.params.type,
-                line: (this.offsets) ? this.offsets[frame.lineNumber][0][2] : frame.lineNumber,
-                col: frame.columnNumber,
-                text: preview,
-            };
-        }
-    },
-    async initServer(file, ip, port) {
-        return new Promise((resolve, reject) => {
-            const spawned = {};
-            spawned.server = spawn('node', [`--inspect-brk=${ip}:${port}`, file]);
-            spawned.stop = () => {
-                spawned.server.kill('SIGHUP');
-            };
-            spawned.processData = (data) => {
-                spawned.url = data.toString().match(WS_REGEX);
-                log(spawned.url);
-                if (spawned.url) {
-                    resolve(spawned);
-                }
-                else {
-                    reject('no url emitted by server');
-                }
-            };
-            spawned.server.stdout.once('data', spawned.processData);
-            spawned.server.stderr.once('data', spawned.processData);
-            spawned.server.on('error', reject);
-            process.on('uncaughtExceptionMonitor', spawned.stop);
-        });
-    },
-    async initConnection(url) {
-        return new Promise((resolve, reject) => {
-            try {
-                const ws = new WebSocket(url);
-                const send = ws.send;
-                ws.send = function (payload) {
-                    send.apply(this, [JSON.stringify(payload)]);
-                };
-                ws.on('open', () => {
-                    resolve(ws);
-                });
-            }
-            catch (err) {
-                reject(err);
-            }
-        });
-    },
+    }
+];
+const evaluateMessage = (message) => {
+    if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'trace') {
+        return consoleTraceHandler(message);
+    }
+    if (message.method === 'Runtime.consoleAPICalled') {
+        return consoleHandler(message);
+    }
+    if (message.method === 'Debugger.paused') {
+        return pauseHandler(message);
+    }
+    if (message.method === 'Runtime.exceptionThrown') {
+        return errorHandler(message);
+    }
 };
