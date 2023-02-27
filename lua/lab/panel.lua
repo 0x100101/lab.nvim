@@ -34,7 +34,7 @@ function Panel:init()
 	api.nvim_buf_set_option(self.buf_handle, "buftype", "nofile")
 	api.nvim_buf_set_option(self.buf_handle, "swapfile", false)
 	api.nvim_buf_set_option(self.buf_handle, "buflisted", false)
-	api.nvim_buf_set_option(self.buf_handle, "filetype", "Markdown")
+	api.nvim_buf_set_option(self.buf_handle, "filetype", "markdown")
 	api.nvim_buf_set_option(self.buf_handle, "modifiable", false)
 	api.nvim_buf_set_option(self.buf_handle, "readonly", true)
 end

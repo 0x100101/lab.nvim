@@ -52,18 +52,14 @@ function Process:start()
 
 			if not success then return end
 
-			if msg.error then
-				vim.notify(msg.error.message, "error", { title = "Lab.nvim"});
-				return
-			end
-
 			for key, handler in pairs(self.handlers) do
 				handler(msg)
 			end
 		end,
 
 		on_stderr = function (error, data)
-			print("stderr", vim.inspect(error), vim.inspect(data))
+			-- @Todo: Printing here will fail.
+			-- print("stderr", vim.inspect(error), vim.inspect(data))
 		end,
 	})
 	self.instance:start()

@@ -88,5 +88,3 @@ export const refresh = (mod, method) => {
 	}
 	return null;
 };
-
-generate();
