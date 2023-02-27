@@ -51,7 +51,7 @@ function Lab.setup(opts)
 		if has_cmp then
 			require('lab.quick_data').init()
 		else
-			vim.notify("Quick data feature requires nvim cmp", "error", { title = "Lab.nvim"});
+			vim.notify("Quick data feature requires nvim cmp", "error", { title = "Lab.nvim" });
 		end
 	end
 

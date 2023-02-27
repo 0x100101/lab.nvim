@@ -22,7 +22,7 @@ import jsonrpc from 'jsonrpc-lite';
 import { print } from '@/util/index.js';
 import { rpcRouter as rpc } from '@/rpc-router.js';
 import { runner } from '@/runner.js';
-import { refresh as quickDataRefresh, dataFilePath as quickDataPath } from '@/quick-data/quick-data.js';
+import { refresh as quickDataRefresh, dataFilePath as quickDataPath, generate as quickDataGenerate } from '@/quick-data/quick-data.js';
 import type { CodeRunnerMessage, ConfigMessage, QuickDataMessage} from '@/types.js';
 import { CodeRunnerMethod, ConfigMethod, QuickDataMethod } from '@/constants.js';
 
@@ -57,8 +57,9 @@ rpc.request(CodeRunnerMethod.Resume, (message: CodeRunnerMessage) => {
 	}
 });
 
-rpc.request(ConfigMethod.Get, (message: ConfigMessage) => {
+rpc.request(ConfigMethod.Get, async (message: ConfigMessage) => {
 	if (message.payload.params.key === 'quick.data.source') {
+		await quickDataGenerate();
 		print(jsonrpc.success(message.payload.id, { path: quickDataPath }));
 	} else {
 		print(jsonrpc.error(message.payload.id, new jsonrpc.JsonRpcError('Unrecognized key', 104)));

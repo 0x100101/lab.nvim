@@ -31,7 +31,7 @@ local supported_file_types = {
 	["javascript"] = true,
 	["javascriptreact"] = true,
 	["typescript"] = true,
-	["typecriptreact"] = true,
+	["typescriptreact"] = true,
 	["python"] = true,
 	["lua"] = true,
 }
@@ -43,9 +43,13 @@ local state = {
 	unregister = nil,
 }
 
+local lang = {
+	disabled = 'The code runner is currently disabled. If this is unexpected, check that lab.setup is being called in your config.',
+}
+
 function CodeRunner.run()
 	if not state.active then 
-		vim.notify("CodeRunner is currently disabled.", "error", { title = "Lab.nvim"});
+		vim.notify(lang.disabled, "error", { title = "Lab.nvim" });
 		return
 	end
 
@@ -68,7 +72,7 @@ function CodeRunner.run()
 	-- Proceed only if the file type is supported.
 	local file_type = Filetype.detect(file_path);
 	if not supported_file_types[file_type] then
-		vim.notify("File type: " .. file_type .. " not supported.", "error", { title = "Lab.nvim"});
+		vim.notify("File type: " .. file_type .. " not supported.", "error", { title = "Lab.nvim" });
 		return
 	end
 
@@ -133,7 +137,7 @@ end
 
 function CodeRunner.stop()
 	if not state.active then 
-		vim.notify("CodeRunner is currently disabled.", "error", { title = "Lab.nvim"});
+		vim.notify(lang.disabled, "error", { title = "Lab.nvim" });
 		return
 	end
 	
@@ -170,7 +174,7 @@ end
 
 function CodeRunner.config()
 	if not state.active then 
-		vim.notify("CodeRunner is currently disabled.", "error", { title = "Lab.nvim"});
+		vim.notify(lang.disabled, "error", { title = "Lab.nvim" });
 		return
 	end
 	local file_path = api.nvim_buf_get_name(0)
@@ -179,7 +183,7 @@ end
 
 function CodeRunner.panel()
 	if not state.active then 
-		vim.notify("CodeRunner is currently disabled.", "error", { title = "Lab.nvim"});
+		vim.notify(lang.disabled, "error", { title = "Lab.nvim" });
 		return
 	end
 	if Panel.is_open then
@@ -204,6 +208,14 @@ function CodeRunner.setup(opts)
 end
 
 function CodeRunner.handler(msg)
+
+	if (msg.error) then
+		vim.defer_fn(function()
+			Panel:write("- " .. msg.error.message)
+			vim.notify(msg.error.message, "error", { title = "Lab.nvim"});
+		end, 1)
+		return
+	end
 
 	if not msg.method or not msg.method == "Lab.Runner.Feedback" then return end;
 

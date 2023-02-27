@@ -21,8 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import jsonrpc from 'jsonrpc-lite';
 import { logger } from '@/util/logging.js';
 import { print, tryRun } from '@/util/index.js';
-import type { RunnerParams, CodeRunnerConfig, PreprocessingData, CodeRunnerNotification} from '@/types.js';
-import { CodeRunnerMethod, Processors, PROCESSOR_PATHS, RUNNER_PATHS } from '@/constants.js';
+import type { RunnerParams, CodeRunnerConfig, PreprocessingData, CodeRunnerNotification } from '@/types.js';
+import { CodeRunnerMethod, Processors, RUNNER_PATHS } from '@/constants.js';
 import { EventEmitter } from 'events';
 
 const log = logger('lab.runner');
@@ -32,7 +32,8 @@ enum LANG {
 	MISSING_CONFIG = 'No config provided.',
 	MISSING_RUNNER = 'No runner configured.',
 	ALREADY_RUNNING = 'Already running on this file.',
-	NOT_RUNNING = 'No runner active on this file.'
+	NOT_RUNNING = 'No runner active on this file.',
+	ESBUILD_FAIL_RECOGNIZED = 'Esbuild failed with a recognized error.',
 }
 
 export const runner = {
@@ -87,12 +88,17 @@ export const runner = {
 		this.instances.set(args.file, runner);
 		return [true];
 	},
-
+	
 	async invokePreprocessing(args: RunnerParams, config: CodeRunnerConfig) {
 		if ('preprocessors' in config && config.preprocessors.includes(Processors.EsBuild)) {
-			const { default: processor } = await import(PROCESSOR_PATHS[Processors.EsBuild]);
-			const path = await processor(args.file);
-			return { filePath: path, useSourceMap: true };
+			const { default: processor } = await import('@/processors/esbuild.js');
+			const [data, error] = await processor(args.file);
+			if (error) {
+				const message = jsonrpc.notification(CodeRunnerMethod.Feedback, { file: args.file, ...data });
+				print(message);
+				throw new Error(LANG.ESBUILD_FAIL_RECOGNIZED);
+			} 
+			return { filePath: data, useSourceMap: true };		
 		}
 		return { filePath: args.file, useSourceMap: false };
 	},

@@ -45,7 +45,6 @@ export type CodeRunnerMessage = RPCMessage<RunnerParams>;
 export type QuickDataMessage = RPCMessage<QuickDataParams>;
 export type ConfigMessage = RPCMessage<ConfigParams>;
 
-
 type Preprocessors = 'lab.esbuild';
 type Runners = 'lab.node' | 'lab.python' | 'lab.lua';
 
@@ -54,7 +53,6 @@ export interface CodeRunnerConfig {
 	preprocessors: Array<Preprocessors>,
 	runner: Runners,
 }
-
 
 export interface PreprocessingData {
 	filePath: string,
@@ -69,6 +67,10 @@ export interface CodeRunnerNotification {
 	text: string,
 	description?: string,
 }
+
+type PreProcessorSuccess = [string, false]
+type PreProcessorError = [CodeRunnerNotification, true]
+export type PreProcessorResult = PreProcessorSuccess | PreProcessorError;
 
 /* eslint-disable-next-line */
 export type GenericCallback = (...args: any[]) => any;
