@@ -38,5 +38,8 @@ export interface CodeRunnerNotification {
     text: string;
     description?: string;
 }
+declare type PreProcessorSuccess = [string, false];
+declare type PreProcessorError = [CodeRunnerNotification, true];
+export declare type PreProcessorResult = PreProcessorSuccess | PreProcessorError;
 export declare type GenericCallback = (...args: any[]) => any;
 export {};

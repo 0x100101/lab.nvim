@@ -18,9 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 import esbuild from 'esbuild';
-import path from 'node:path';
-import fs from 'node:fs/promises';
-import os from 'node:os';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import { logger } from '../util/logging.js';
 const log = logger('esbuild');
 export default async (filePath) => {
@@ -38,9 +38,22 @@ export default async (filePath) => {
             outfile: outPath,
             logLevel: 'silent',
         });
-        return outPath;
+        return [outPath, false];
     }
     catch (err) {
-        throw new Error('esbuild failed');
+        const buildError = err;
+        if ('errors' in buildError && Array.isArray(buildError.errors) && buildError.errors.length) {
+            const [errorInfo] = buildError.errors;
+            return [{
+                    event: 'error',
+                    text: errorInfo?.text ?? '',
+                    description: '',
+                    line: errorInfo?.location?.line ? errorInfo.location.line - 1 : 0,
+                    col: errorInfo?.location?.column ?? 0,
+                }, true];
+        }
+        else {
+            throw err;
+        }
     }
 };

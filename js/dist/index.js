@@ -21,7 +21,7 @@ import jsonrpc from 'jsonrpc-lite';
 import { print } from './util/index.js';
 import { rpcRouter as rpc } from './rpc-router.js';
 import { runner } from './runner.js';
-import { refresh as quickDataRefresh, dataFilePath as quickDataPath } from './quick-data/quick-data.js';
+import { refresh as quickDataRefresh, dataFilePath as quickDataPath, generate as quickDataGenerate } from './quick-data/quick-data.js';
 import { CodeRunnerMethod, ConfigMethod, QuickDataMethod } from './constants.js';
 var LANG;
 (function (LANG) {
@@ -54,8 +54,9 @@ rpc.request(CodeRunnerMethod.Resume, (message) => {
         print(jsonrpc.success(message.payload.id, LANG.STATUS_OK));
     }
 });
-rpc.request(ConfigMethod.Get, (message) => {
+rpc.request(ConfigMethod.Get, async (message) => {
     if (message.payload.params.key === 'quick.data.source') {
+        await quickDataGenerate();
         print(jsonrpc.success(message.payload.id, { path: quickDataPath }));
     }
     else {
