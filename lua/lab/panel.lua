@@ -40,9 +40,8 @@ function Panel:init()
 end
 
 function Panel:open()
-
-	api.nvim_command('botright split lab')
-	api.nvim_command('setlocal nonumber norelativenumber')
+	api.nvim_command("botright split lab")
+	api.nvim_command("setlocal nonumber norelativenumber")
 	api.nvim_win_set_height(0, 10)
 
 	self.win_handle = api.nvim_tabpage_get_win(0)
@@ -66,12 +65,12 @@ end
 
 function Panel:modifiable(state)
 	api.nvim_buf_set_option(self.buf_handle, "modifiable", state)
-	api.nvim_buf_set_option(self.buf_handle, "readonly", (not state))
+	api.nvim_buf_set_option(self.buf_handle, "readonly", not state)
 end
 
 function Panel:write(text)
 	self:modifiable(true)
-	local lines = {text}
+	local lines = { text }
 	api.nvim_buf_set_lines(self.buf_handle, -1, -1, true, lines)
 	self:modifiable(false)
 	self:scrollToBottom()
