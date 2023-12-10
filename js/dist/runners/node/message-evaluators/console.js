@@ -29,7 +29,7 @@ const objPreview = {
     formatValue(item) {
         switch (item.type) {
             case 'function':
-                return '';
+                return '󰊕';
             case 'string':
                 return `"${item.value}"`;
             default:

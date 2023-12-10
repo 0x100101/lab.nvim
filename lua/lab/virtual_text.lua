@@ -31,7 +31,7 @@ function VirtualText:render(opts)
 	if not opts.line_num then return end
 	if not opts.run_id then return end
 
-	local default_opts = { icon = '', pos = 'eol', append = true, hl = 'DiagnosticVirtualTextHint' }
+	local default_opts = { icon = '󰅴', pos = 'eol', append = true, hl = 'DiagnosticVirtualTextHint' }
 
 	for k, v in pairs(default_opts) do
 		if opts[k] == nil then opts[k] = v end

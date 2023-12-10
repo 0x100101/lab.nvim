@@ -272,7 +272,7 @@ function CodeRunner.handler(msg)
 				text = msg.params.text,
 				hl = 'DiagnosticVirtualTextWarn',
 				append = false,
-				icon = '',
+				icon = '󰏦',
 			})
 			Panel:write("- [" .. (msg.params.line + 1) .. "] " .. msg.params.text)
 		end, 1)
